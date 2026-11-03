@@ -1,72 +1,44 @@
-import React from 'react';
-import { BookOpen, Users, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { BookOpen, Users, CheckCircle2, AlertTriangle } from "lucide-react";
 
 export default function StatsCards({ books, borrows }) {
-  // Hisob-kitoblar
   const totalBooks = books.reduce((sum, b) => sum + (Number(b.totalCount) || 0), 0);
-  const activeBorrows = borrows.filter(b => b.status === 'active' || b.status === 'overdue').length;
   const availableBooks = books.reduce((sum, b) => sum + (Number(b.availableCount) || 0), 0);
-  const overdueBorrows = borrows.filter(b => b.status === 'overdue').length;
+  const activeBorrows = borrows.filter((b) => b.status !== "returned").length;
+  const overdue = borrows.filter((b) => b.status === "overdue").length;
 
   const stats = [
+    { label: "Jami kitob fondi", value: totalBooks, sub: `${books.length} xil nomdagi asar`, Icon: BookOpen },
+    { label: "Talabalarda", value: activeBorrows, sub: "Hozir o'qilayotgan kitoblar", Icon: Users },
+    { label: "Kutubxonada mavjud", value: availableBooks, sub: "Berishga tayyor nusxalar", Icon: CheckCircle2 },
     {
-      label: "Jami kitob fondi",
-      value: totalBooks,
-      subtext: `${books.length} xil nomdagi asarlar`,
-      icon: BookOpen,
-      color: "from-blue-500 to-indigo-600",
-      bgLight: "bg-blue-50 text-blue-700 border-blue-200"
+      label: "Muddati o'tgan",
+      value: overdue,
+      sub: overdue > 0 ? "Qaytarish talab etiladi" : "Barcha muddatlar joyida",
+      Icon: AlertTriangle,
+      danger: overdue > 0,
     },
-    {
-      label: "Talabalarda (ijarada)",
-      value: activeBorrows,
-      subtext: "Hozir o'qilayotgan kitoblar",
-      icon: Users,
-      color: "from-amber-500 to-orange-600",
-      bgLight: "bg-amber-50 text-amber-700 border-amber-200"
-    },
-    {
-      label: "Kutubxonada mavjud",
-      value: availableBooks,
-      subtext: "Ijaraga berishga tayyor",
-      icon: CheckCircle2,
-      color: "from-emerald-500 to-teal-600",
-      bgLight: "bg-emerald-50 text-emerald-700 border-emerald-200"
-    },
-    {
-      label: "Muddati o'tganlar",
-      value: overdueBorrows,
-      subtext: overdueBorrows > 0 ? "Shoshilinch qaytarish talab etiladi" : "Barcha muddatlar joyida",
-      icon: AlertTriangle,
-      color: "from-rose-500 to-red-600",
-      bgLight: overdueBorrows > 0 ? "bg-rose-50 text-rose-700 border-rose-200 animate-pulse" : "bg-slate-50 text-slate-700 border-slate-200"
-    }
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {stats.map((item, idx) => {
-        const Icon = item.icon;
-        return (
-          <div
-            key={idx}
-            className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{item.label}</p>
-                <h3 className="text-3xl font-extrabold text-slate-900 mt-1">{item.value}</h3>
-              </div>
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${item.bgLight}`}>
-                <Icon className="w-6 h-6" />
-              </div>
+    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {stats.map(({ label, value, sub, Icon, danger }) => (
+        <li key={label} className={`card p-5 ${danger ? "border-red-200" : ""}`}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-mute">{label}</p>
+              <p className={`mt-1 text-3xl font-semibold ${danger ? "text-red-700" : "text-ink"}`}>{value}</p>
             </div>
-            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center text-xs text-slate-500">
-              <span>{item.subtext}</span>
-            </div>
+            <span
+              className={`grid h-11 w-11 place-items-center rounded-xl ${
+                danger ? "bg-red-50 text-red-700" : "bg-gold-soft text-gold-text"
+              }`}
+            >
+              <Icon className="h-5 w-5" aria-hidden="true" />
+            </span>
           </div>
-        );
-      })}
-    </div>
+          <p className="mt-3 border-t border-line pt-3 font-serif text-sm text-mute">{sub}</p>
+        </li>
+      ))}
+    </ul>
   );
 }

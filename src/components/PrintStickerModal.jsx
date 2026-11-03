@@ -1,98 +1,48 @@
-import React, { useRef } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
-import { X, Printer, Download, Sparkles, Check } from 'lucide-react';
+import { QRCodeSVG } from "qrcode.react";
+import { Printer } from "lucide-react";
+import Modal from "./ui/Modal";
 
 export default function PrintStickerModal({ book, onClose }) {
-  if (!book) return null;
-
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
-        
-        {/* Modal sarlavhasi */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
-              <Printer className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 text-base">QR Stiker chop etish</h3>
-              <p className="text-xs text-slate-500">Kitob orqasiga yopishtirish uchun</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Stiker ko'rinishi (Termoprinter shabloni 58mm) */}
-        <div className="my-6 flex flex-col items-center justify-center">
-          <div
-            id="printable-sticker"
-            className="w-64 bg-white border-2 border-dashed border-slate-300 rounded-xl p-4 flex flex-col items-center text-center shadow-inner relative"
-          >
-            <div className="text-[10px] font-bold tracking-widest text-emerald-700 uppercase mb-1">
-              ★ SMART KUTUBXONA ★
-            </div>
-            
-            {/* QR Kod */}
-            <div className="p-2 bg-white rounded-lg border border-slate-200 my-1 shadow-sm">
-              <QRCodeSVG
-                value={book.id}
-                size={120}
-                level="H"
-                includeMargin={false}
-              />
-            </div>
-
-            {/* Inventar ID */}
-            <div className="font-mono font-bold text-sm tracking-wider text-slate-900 bg-slate-100 px-3 py-0.5 rounded mt-1 border border-slate-200">
-              {book.id}
-            </div>
-
-            {/* Kitob nomi va muallifi */}
-            <div className="mt-2 text-xs font-semibold text-slate-800 line-clamp-1">
-              {book.title}
-            </div>
-            <div className="text-[11px] text-slate-500 line-clamp-1">
-              {book.author} ({book.year})
-            </div>
-
-            <div className="mt-2 text-[9px] text-slate-400 border-t border-slate-100 pt-1 w-full">
-              Skaner orqali tezkor berish & qaytarish
-            </div>
-          </div>
-
-          <p className="text-xs text-slate-500 mt-3 text-center">
-            💡 Kichik printercha (58mm yoki stiker qog'oz) ga to'g'ri keladigan o'lcham.
-          </p>
-        </div>
-
-        {/* Tugmalar */}
-        <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition-colors"
-          >
+    <Modal
+      title="QR stiker chop etish"
+      subtitle="Kitob orqasiga yopishtirish uchun"
+      icon={Printer}
+      onClose={onClose}
+      size="sm"
+      footer={
+        <div className="flex gap-3">
+          <button type="button" onClick={onClose} className="btn btn-outline flex-1">
             Yopish
           </button>
-          <button
-            onClick={handlePrint}
-            className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 shadow-sm shadow-emerald-600/30 transition-all"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Chop etish</span>
+          <button type="button" onClick={() => window.print()} className="btn btn-gold flex-1">
+            <Printer className="h-4 w-4" aria-hidden="true" />
+            Chop etish
           </button>
         </div>
-
+      }
+    >
+      <div className="flex flex-col items-center">
+        {/* 58 mm termoprinter shabloni */}
+        <div
+          id="printable-sticker"
+          className="flex w-64 flex-col items-center rounded-2xl border-2 border-dashed border-gold/60 bg-white p-4 text-center"
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold-text">★ Smart Kutubxona ★</p>
+          <div className="my-2 rounded-lg border border-line bg-white p-2">
+            <QRCodeSVG value={book.id} size={120} level="H" />
+          </div>
+          <p className="rounded bg-paper px-3 py-0.5 font-mono text-sm font-bold tracking-wider text-ink">{book.id}</p>
+          <p className="mt-2 line-clamp-1 text-xs font-semibold text-ink">{book.title}</p>
+          <p className="line-clamp-1 text-[11px] text-mute">
+            {book.author} ({book.year})
+          </p>
+          <p className="mt-2 w-full border-t border-line pt-1 text-[9px] text-mute">Skaner orqali tezkor berish va qaytarish</p>
+        </div>
+        <p className="mt-4 text-center font-serif text-sm text-mute">
+          58 mm kichik printer yoki stiker qog'oziga mos o'lcham.
+        </p>
       </div>
-    </div>
+    </Modal>
   );
 }
