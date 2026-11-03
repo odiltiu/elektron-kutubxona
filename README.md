@@ -12,6 +12,10 @@ Dizayn muhaddis.uz (Hadis ilmi maktabi) saytining uslubida: oltin rang palitrasi
 - **QR stiker:** 58 mm termoprinter uchun stiker chop etish
 - **Yangi kitob:** Google Books bazasidan topish yoki qo'lda kiritish (takror kitob qo'shilsa, nusxalari ko'payadi)
 - **Kitob tavsiyasi:** fonddagi kitoblar bo'yicha mavzu, muallif va nom bo'yicha qidiruv
+- **Excel'ga yuklash:** kitoblar va ijaralar ro'yxatini `.csv` faylga eksport
+- **Zaxira:** barcha ma'lumotni bitta faylga yuklab olish va undan tiklash (footer'da)
+- **Telefon kamerasi bilan QR:** Android Chrome va Edge'da skaner apparatisiz ishlaydi
+- **Arabcha kitoblar:** nom va mualliflar o'ngdan chapga to'g'ri ko'rinadi
 
 ## Ishga tushirish
 
@@ -24,5 +28,5 @@ Production uchun: `npm run build`.
 
 ## Eslatma
 
-Ma'lumotlar brauzerning `localStorage` xotirasida saqlanadi. Bir nechta kompyuterda umumiy baza bilan ishlash uchun
+Ma'lumotlar brauzerning `localStorage` xotirasida saqlanadi, shuning uchun vaqti-vaqti bilan zaxira oling. Bir nechta kompyuterda umumiy baza bilan ishlash uchun
 server (masalan, Node.js + ma'lumotlar bazasi) qo'shish kerak bo'ladi.

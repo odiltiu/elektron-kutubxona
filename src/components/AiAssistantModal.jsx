@@ -121,7 +121,7 @@ export default function AiAssistantModal({ books, borrows, onClose, onSelectBook
                     <li key={b.id} className="flex items-center gap-3 rounded-2xl border border-line bg-white p-2.5">
                       <BookCover book={b} compact className="h-16 w-11 shrink-0 rounded-md" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-ink">{b.title}</p>
+                        <p dir="auto" className="truncate text-sm font-semibold text-ink">{b.title}</p>
                         <p className="truncate font-serif text-xs text-mute">
                           {b.author} · {b.availableCount > 0 ? `${b.availableCount} ta mavjud` : "hozircha band"}
                         </p>

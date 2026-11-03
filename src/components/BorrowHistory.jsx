@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { RefreshCw, Search } from "lucide-react";
+import { RefreshCw, Search, Download } from "lucide-react";
 import StatusChip from "./ui/StatusChip";
 import { normalize } from "../lib/library";
+import { downloadFile, toCSV } from "../lib/exportData";
 import { formatDate, daysBetween, todayStr } from "../lib/date";
 
 const FILTERS = [
@@ -37,6 +38,23 @@ export default function BorrowHistory({ borrows, onReturnBook }) {
     if (d < 0) return `${-d} kun kechikdi`;
     if (d === 0) return "Bugun qaytarilishi kerak";
     return `${d} kun qoldi`;
+  };
+
+  const STATUS_LABEL = { active: "O'qilmoqda", overdue: "Muddati o'tgan", returned: "Qaytarilgan" };
+  const exportCSV = () => {
+    const csv = toCSV(filtered, [
+      { label: "ID", value: (b) => b.id },
+      { label: "Talaba", value: (b) => b.studentName },
+      { label: "Guruh", value: (b) => b.studentGroup },
+      { label: "Telefon", value: (b) => b.studentPhone },
+      { label: "Kitob ID", value: (b) => b.bookId },
+      { label: "Kitob", value: (b) => b.bookTitle },
+      { label: "Berilgan", value: (b) => b.borrowDate },
+      { label: "Muddat", value: (b) => b.dueDate },
+      { label: "Qaytarilgan", value: (b) => b.returnDate || "" },
+      { label: "Holati", value: (b) => STATUS_LABEL[b.status] || b.status },
+    ]);
+    downloadFile(`ijaralar-${today}.csv`, csv, "text/csv;charset=utf-8");
   };
 
   const returnButton = (item) =>
@@ -80,6 +98,16 @@ export default function BorrowHistory({ borrows, onReturnBook }) {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+        <p className="text-sm text-mute" aria-live="polite">
+          {filtered.length} ta yozuv
+        </p>
+        <button type="button" onClick={exportCSV} disabled={filtered.length === 0} className="btn btn-outline min-h-[40px] px-4 text-xs">
+          <Download className="h-4 w-4 text-gold-deep" aria-hidden="true" />
+          Excel'ga yuklash
+        </button>
       </div>
 
       {filtered.length === 0 ? (
@@ -141,7 +169,7 @@ export default function BorrowHistory({ borrows, onReturnBook }) {
                     </td>
                     <td className="px-4 py-3.5">
                       <span className="font-mono text-[11px] text-mute">{item.bookId}</span>
-                      <div className="font-serif text-ink">{item.bookTitle}</div>
+                      <div dir="auto" className="font-serif text-ink">{item.bookTitle}</div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-mute">{formatDate(item.borrowDate)}</td>
                     <td className="whitespace-nowrap px-4 py-3.5">

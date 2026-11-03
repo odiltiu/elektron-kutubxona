@@ -1,4 +1,7 @@
-import { BookOpen } from "lucide-react";
+import { useRef } from "react";
+import { BookOpen, Download, Upload } from "lucide-react";
+import { downloadFile, makeBackup, parseBackup } from "../lib/exportData";
+import { todayStr } from "../lib/date";
 
 const LINKS = [
   { id: "dashboard", label: "Bosh sahifa" },
@@ -6,7 +9,29 @@ const LINKS = [
   { id: "borrows", label: "Ijaralar" },
 ];
 
-export default function Footer({ onNavigate }) {
+export default function Footer({ onNavigate, books, borrows, onRestore, onError }) {
+  const fileRef = useRef(null);
+
+  const handleBackup = () => {
+    downloadFile(`smart-kutubxona-zaxira-${todayStr()}.json`, makeBackup(books, borrows), "application/json");
+  };
+
+  const handleRestoreFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // shu faylni qayta tanlash mumkin bo'lsin
+    if (!file) return;
+    try {
+      const data = parseBackup(await file.text());
+      const ok = window.confirm(
+        `Zaxirada ${data.books.length} ta kitob va ${data.borrows.length} ta ijara bor.\n` +
+          "Joriy ma'lumotlar shu zaxira bilan almashtiriladi. Davom etasizmi?"
+      );
+      if (ok) onRestore(data);
+    } catch (err) {
+      onError(err.message);
+    }
+  };
+
   return (
     <footer className="mt-12 border-t border-line bg-white">
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 py-10 sm:grid-cols-3 sm:px-6 lg:px-8">
@@ -40,10 +65,29 @@ export default function Footer({ onNavigate }) {
         </div>
 
         <div>
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink">Ma'lumotlar</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink">Ma'lumotlar zaxirasi</h2>
           <p className="mt-3 font-serif text-sm leading-relaxed text-mute">
-            Ma'lumotlar shu brauzerning xotirasida saqlanadi. Boshqa kompyuterda ishlash uchun server ulanishi kerak bo'ladi.
+            Ma'lumotlar shu brauzer xotirasida saqlanadi. Brauzer tozalanib ketmasligi uchun vaqti-vaqti bilan zaxira oling.
           </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={handleBackup} className="btn btn-soft min-h-[40px] px-4 text-xs">
+              <Download className="h-4 w-4" aria-hidden="true" />
+              Zaxira olish
+            </button>
+            <button type="button" onClick={() => fileRef.current?.click()} className="btn btn-outline min-h-[40px] px-4 text-xs">
+              <Upload className="h-4 w-4 text-gold-deep" aria-hidden="true" />
+              Zaxiradan tiklash
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json,.json"
+              onChange={handleRestoreFile}
+              className="sr-only"
+              tabIndex={-1}
+              aria-label="Zaxira faylini tanlash"
+            />
+          </div>
         </div>
       </div>
 

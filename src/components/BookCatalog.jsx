@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
-import { Search, PlusCircle, Printer, BookOpen } from "lucide-react";
+import { Search, PlusCircle, Printer, BookOpen, Download } from "lucide-react";
 import BookCover from "./ui/BookCover";
 import { normalize } from "../lib/library";
+import { downloadFile, toCSV } from "../lib/exportData";
+import { todayStr } from "../lib/date";
 
 const AVAILABILITY = [
   { id: "all", label: "Barchasi" },
@@ -30,6 +32,21 @@ export default function BookCatalog({ books, onBorrowClick, onPrintClick, onAddB
       availability === "all" || (availability === "available" ? b.availableCount > 0 : b.availableCount === 0);
     return matchesSearch && matchesCategory && matchesAvailability;
   });
+
+  // Ko'rinib turgan ro'yxatni Excel'da ochiladigan faylga yuklab olish
+  const exportCSV = () => {
+    const csv = toCSV(filtered, [
+      { label: "ID", value: (b) => b.id },
+      { label: "Nomi", value: (b) => b.title },
+      { label: "Muallif", value: (b) => b.author },
+      { label: "Janr", value: (b) => b.category },
+      { label: "Yil", value: (b) => b.year },
+      { label: "Jami nusxa", value: (b) => b.totalCount },
+      { label: "Mavjud", value: (b) => b.availableCount },
+      { label: "Tavsif", value: (b) => b.description },
+    ]);
+    downloadFile(`kitoblar-${todayStr()}.csv`, csv, "text/csv;charset=utf-8");
+  };
 
   const categoryButton = (id, label, count) => {
     const active = category === id;
@@ -109,9 +126,15 @@ export default function BookCatalog({ books, onBorrowClick, onPrintClick, onAddB
           </div>
         </div>
 
-        <p className="text-sm text-mute" aria-live="polite">
-          {filtered.length} ta kitob topildi
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-mute" aria-live="polite">
+            {filtered.length} ta kitob topildi
+          </p>
+          <button type="button" onClick={exportCSV} disabled={filtered.length === 0} className="btn btn-outline min-h-[40px] px-4 text-xs">
+            <Download className="h-4 w-4 text-gold-deep" aria-hidden="true" />
+            Excel'ga yuklash
+          </button>
+        </div>
 
         {filtered.length === 0 ? (
           <div className="card p-12 text-center">
@@ -133,11 +156,11 @@ export default function BookCatalog({ books, onBorrowClick, onPrintClick, onAddB
                         {book.category}
                       </span>
                     </div>
-                    <h3 className="mt-1 line-clamp-2 font-semibold leading-snug text-ink">{book.title}</h3>
-                    <p className="font-serif text-sm text-mute">
+                    <h3 dir="auto" className="mt-1 line-clamp-2 font-semibold leading-snug text-ink">{book.title}</h3>
+                    <p dir="auto" className="font-serif text-sm text-mute">
                       {book.author} · {book.year}
                     </p>
-                    <p className="mt-1.5 line-clamp-2 font-serif text-sm leading-snug text-ink/75">{book.description}</p>
+                    <p dir="auto" className="mt-1.5 line-clamp-2 font-serif text-sm leading-snug text-ink/75">{book.description}</p>
 
                     <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
                       <span className={`chip ${isAvailable ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
