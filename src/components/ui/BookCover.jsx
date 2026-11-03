@@ -23,7 +23,7 @@ export default function BookCover({ book, className = "", compact = false }) {
       aria-hidden="true"
       className={`flex items-center justify-center bg-gradient-to-br from-gold-soft via-gold/50 to-gold-deep/70 p-2 text-center font-serif font-bold leading-tight text-ink ${className}`}
     >
-      <span className={compact ? "line-clamp-3 text-[9px]" : "line-clamp-4 text-sm"}>{book.title}</span>
+      <span dir="auto" className={compact ? "line-clamp-3 text-[9px]" : "line-clamp-4 text-sm"}>{book.title}</span>
     </div>
   );
 }

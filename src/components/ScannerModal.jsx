@@ -1,5 +1,6 @@
-import { useRef, useState } from "react";
-import { QrCode, CheckCircle2, AlertCircle, RefreshCw, BookOpen } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { QrCode, CheckCircle2, AlertCircle, RefreshCw, BookOpen, Camera } from "lucide-react";
+import CameraScanner, { cameraScanSupported } from "./CameraScanner";
 import Modal from "./ui/Modal";
 import BookCover from "./ui/BookCover";
 import { formatDate } from "../lib/date";
@@ -8,27 +9,44 @@ export default function ScannerModal({ books, borrows, onClose, onBorrowBook, on
   const [code, setCode] = useState("");
   const [foundId, setFoundId] = useState(null);
   const [message, setMessage] = useState(null);
+  const [cameraOn, setCameraOn] = useState(false);
   const inputRef = useRef(null);
 
   // Kitob va ijaralar har doim joriy ma'lumotdan olinadi: qaytarilgandan keyin sonlar darhol yangilanadi
   const book = books.find((b) => b.id === foundId) || null;
   const activeBorrows = book ? borrows.filter((b) => b.bookId === book.id && b.status !== "returned") : [];
 
+  // Kod bo'yicha kitobni topish (skaner apparati, qo'lda kiritish va kamera uchun umumiy)
+  const lookup = useCallback(
+    (raw) => {
+      const clean = String(raw).trim().toUpperCase();
+      if (!clean) return;
+      const found = books.find((b) => b.id.toUpperCase() === clean);
+      if (found) {
+        setFoundId(found.id);
+        setMessage({ type: "success", text: `Topildi: ${found.title}` });
+      } else {
+        setFoundId(null);
+        setMessage({ type: "error", text: `"${clean}" kodli kitob topilmadi.` });
+      }
+    },
+    [books]
+  );
+
   // Skaner apparati kodni yozib, oxirida Enter bosadi — forma o'zi yuboriladi
   const handleSubmit = (e) => {
     e.preventDefault();
-    const clean = code.trim().toUpperCase();
-    if (!clean) return;
-    const found = books.find((b) => b.id.toUpperCase() === clean);
-    if (found) {
-      setFoundId(found.id);
-      setMessage({ type: "success", text: `Topildi: ${found.title}` });
-    } else {
-      setFoundId(null);
-      setMessage({ type: "error", text: `"${clean}" kodli kitob topilmadi.` });
-    }
+    lookup(code);
     setCode(""); // keyingi skanerlash uchun maydon tozalanadi
   };
+
+  const handleCameraDetected = useCallback(
+    (value) => {
+      setCameraOn(false);
+      lookup(value);
+    },
+    [lookup]
+  );
 
   const handleReturn = (borrow) => {
     onReturnBook(borrow.id);
@@ -61,7 +79,15 @@ export default function ScannerModal({ books, borrows, onClose, onBorrowBook, on
           <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
           Skaner tayyor: kodni o'qitsangiz, avtomatik qidiradi.
         </p>
+        {cameraScanSupported && !cameraOn && (
+          <button type="button" onClick={() => setCameraOn(true)} className="btn btn-outline mt-3 w-full">
+            <Camera className="h-4 w-4 text-gold-deep" aria-hidden="true" />
+            Telefon kamerasi bilan skanerlash
+          </button>
+        )}
       </form>
+
+      {cameraOn && <CameraScanner onDetected={handleCameraDetected} onClose={() => setCameraOn(false)} />}
 
       <div aria-live="polite">
         {message && (
@@ -86,8 +112,8 @@ export default function ScannerModal({ books, borrows, onClose, onBorrowBook, on
             <BookCover book={book} compact className="h-24 w-16 shrink-0 rounded-lg shadow-card" />
             <div className="min-w-0">
               <span className="font-mono text-[11px] font-semibold text-mute">{book.id}</span>
-              <h3 className="font-semibold text-ink">{book.title}</h3>
-              <p className="font-serif text-sm text-mute">
+              <h3 dir="auto" className="font-semibold text-ink">{book.title}</h3>
+              <p dir="auto" className="font-serif text-sm text-mute">
                 {book.author} · {book.year}
               </p>
               <p className="mt-1 text-sm">

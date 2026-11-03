@@ -195,7 +195,7 @@ export default function App() {
                       <BookCover book={b} compact className="h-24 w-16 shrink-0 rounded-lg shadow-card" />
                       <div className="min-w-0 flex-1">
                         <p className="text-[11px] font-semibold uppercase tracking-wider text-gold-text">{b.category}</p>
-                        <h3 className="mt-0.5 line-clamp-1 font-semibold text-ink">{b.title}</h3>
+                        <h3 dir="auto" className="mt-0.5 line-clamp-1 font-semibold text-ink">{b.title}</h3>
                         <p className="font-serif text-sm text-mute">
                           {b.author} · {b.year}
                         </p>
@@ -227,7 +227,7 @@ export default function App() {
                         <p className="min-w-0 truncate text-sm font-semibold text-ink">{br.studentName}</p>
                         <StatusChip status={br.status} />
                       </div>
-                      <p className="mt-0.5 truncate font-serif text-sm text-mute">{br.bookTitle}</p>
+                      <p dir="auto" className="mt-0.5 truncate font-serif text-sm text-mute">{br.bookTitle}</p>
                       {br.status !== "returned" && (
                         <p className="mt-1 text-[11px] text-mute">Muddat: {formatDate(br.dueDate)}</p>
                       )}
@@ -262,7 +262,17 @@ export default function App() {
         )}
       </main>
 
-      <Footer onNavigate={goTo} />
+      <Footer
+        onNavigate={goTo}
+        books={books}
+        borrows={borrows}
+        onRestore={(data) => {
+          setBooks(data.books);
+          setBorrows(data.borrows);
+          setToast(`Zaxira tiklandi: ${data.books.length} ta kitob, ${data.borrows.length} ta ijara.`);
+        }}
+        onError={setToast}
+      />
 
       {isScannerOpen && (
         <ScannerModal

@@ -39,7 +39,7 @@ export default function BorrowModal({ book, onClose, onSubmitBorrow }) {
         <BookCover book={book} compact className="h-16 w-12 shrink-0 rounded-md" />
         <div className="min-w-0">
           <span className="font-mono text-[11px] font-semibold text-mute">{book.id}</span>
-          <p className="truncate font-semibold text-ink">{book.title}</p>
+          <p dir="auto" className="truncate font-semibold text-ink">{book.title}</p>
           <p className="truncate font-serif text-sm text-mute">
             {book.author} · {book.availableCount} ta bo'sh nusxa
           </p>
