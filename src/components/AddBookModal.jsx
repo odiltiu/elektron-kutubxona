@@ -1,310 +1,248 @@
-import React, { useState } from 'react';
-import { X, Search, PlusCircle, Loader2, BookOpen, Sparkles, Check } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { Search, PlusCircle, Loader2, BookOpen, Globe } from "lucide-react";
+import Modal from "./ui/Modal";
+import BookCover from "./ui/BookCover";
 
-export default function AddBookModal({ onClose, onAddBook, existingBooksCount }) {
-  const [activeTab, setActiveTab] = useState('api'); // 'api' yoki 'manual'
-  const [searchQuery, setSearchQuery] = useState('');
+const THIS_YEAR = new Date().getFullYear();
+
+// Google Books ba'zan http:// havola qaytaradi — https saytda bunday rasm bloklanadi
+const httpsUrl = (url) => (url ? url.replace(/^http:\/\//, "https://") : "");
+
+export default function AddBookModal({ categories, onClose, onAddBook }) {
+  const [tab, setTab] = useState("api"); // api | manual
+  const [copies, setCopies] = useState(1);
+
+  // API qidiruv
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
+  const [results, setResults] = useState([]);
   const [error, setError] = useState(null);
+  const abortRef = useRef(null);
 
-  // Qo'lda kiritish formasi
-  const [formData, setFormData] = useState({
-    title: '',
-    author: '',
-    category: 'Dasturlash',
-    year: 2026,
-    totalCount: 3,
-    cover: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80',
-    description: ''
+  // Qo'lda kiritish
+  const [form, setForm] = useState({
+    title: "",
+    author: "",
+    category: categories[0] || "Umumiy",
+    year: THIS_YEAR,
+    cover: "",
+    description: "",
   });
 
-  // Tashqi API orqali qidirish (Google Books API)
+  // Oyna yopilsa, tugallanmagan so'rov bekor qilinadi
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const totalCount = Math.max(1, Math.min(999, Number(copies) || 1));
+
   const handleApiSearch = async (e) => {
-    e?.preventDefault();
-    if (!searchQuery.trim()) return;
+    e.preventDefault();
+    if (!query.trim()) return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     setLoading(true);
     setError(null);
-    setSearchResults([]);
-
+    setResults([]);
     try {
-      const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchQuery)}&maxResults=6`);
-      if (!res.ok) throw new Error("API dan ma'lumot olishda xatolik yuz berdi");
+      const res = await fetch(
+        `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8`,
+        { signal: controller.signal }
+      );
+      if (!res.ok) throw new Error("Kitoblar bazasidan javob olinmadi. Birozdan keyin urinib ko'ring.");
       const data = await res.json();
-
-      if (data.items && data.items.length > 0) {
-        const formatted = data.items.map(item => {
-          const info = item.volumeInfo || {};
-          return {
-            title: info.title || "Nomsiz kitob",
-            author: (info.authors && info.authors.join(", ")) || "Noma'lum muallif",
-            category: (info.categories && info.categories[0]) || "Umumiy",
-            year: info.publishedDate ? parseInt(info.publishedDate.substring(0, 4)) : 2024,
-            cover: (info.imageLinks && (info.imageLinks.thumbnail || info.imageLinks.smallThumbnail)) || "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=400&q=80",
-            description: info.description ? info.description.substring(0, 160) + "..." : "Kitob tavsifi mavjud emas.",
-            totalCount: 3
-          };
-        });
-        setSearchResults(formatted);
-      } else {
-        setError("Bunday nomdagi kitob topilmadi. Qidiruv so'zini o'zgartirib ko'ring yoki qo'lda kiriting.");
-      }
+      const items = (data.items || []).map((item) => {
+        const info = item.volumeInfo || {};
+        const year = parseInt(String(info.publishedDate || "").slice(0, 4), 10);
+        return {
+          key: item.id,
+          title: info.title || "Nomsiz kitob",
+          author: (info.authors || []).join(", ") || "Noma'lum muallif",
+          category: (info.categories || [])[0] || "Umumiy",
+          year: Number.isFinite(year) ? year : THIS_YEAR,
+          cover: httpsUrl(info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail),
+          description: info.description
+            ? info.description.length > 180
+              ? `${info.description.slice(0, 180)}...`
+              : info.description
+            : "Kitob tavsifi mavjud emas.",
+        };
+      });
+      if (items.length === 0) setError("Bunday kitob topilmadi. Boshqa so'z bilan qidiring yoki qo'lda kiriting.");
+      setResults(items);
     } catch (err) {
-      setError(err.message || "Internet yoki API bilan bog'lanishda xatolik");
+      if (err.name === "AbortError") return;
+      setError(err.message || "Internet bilan bog'lanishda xatolik.");
     } finally {
-      setLoading(false);
+      if (abortRef.current === controller) setLoading(false);
     }
   };
 
-  const handleSelectApiBook = (item) => {
-    const nextId = `BK-${1000 + existingBooksCount + 1}`;
-    onAddBook({
-      ...item,
-      id: nextId,
-      availableCount: item.totalCount
-    });
+  const addFromApi = (item) => {
+    // eslint-disable-next-line no-unused-vars
+    const { key, ...book } = item;
+    onAddBook({ ...book, totalCount });
     onClose();
   };
 
   const handleManualSubmit = (e) => {
     e.preventDefault();
-    if (!formData.title || !formData.author) return;
-
-    const nextId = `BK-${1000 + existingBooksCount + 1}`;
+    if (!form.title.trim() || !form.author.trim()) return;
+    const year = Number(form.year);
     onAddBook({
-      ...formData,
-      id: nextId,
-      totalCount: Number(formData.totalCount) || 1,
-      availableCount: Number(formData.totalCount) || 1
+      title: form.title.trim(),
+      author: form.author.trim(),
+      category: form.category.trim() || "Umumiy",
+      year: Number.isFinite(year) && year > 0 ? year : THIS_YEAR,
+      cover: form.cover.trim(),
+      description: form.description.trim() || "Kitob tavsifi kiritilmagan.",
+      totalCount,
     });
     onClose();
   };
 
+  const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] flex flex-col">
-        
-        {/* Modal sarlavhasi */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
-              <PlusCircle className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 text-base">Yangi kitob qo'shish</h3>
-              <p className="text-xs text-slate-500">API orqali avtomatik topish yoki qo'lda kiritish</p>
-            </div>
+    <Modal title="Yangi kitob qo'shish" subtitle="Internet bazasidan topish yoki qo'lda kiritish" icon={PlusCircle} onClose={onClose} size="lg">
+      <div role="group" aria-label="Qo'shish usuli" className="grid grid-cols-2 gap-1 rounded-full bg-paper p-1">
+        {[
+          { id: "api", label: "Internetdan topish", Icon: Globe },
+          { id: "manual", label: "Qo'lda kiritish", Icon: BookOpen },
+        ].map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            aria-pressed={tab === id}
+            className={`flex min-h-[40px] items-center justify-center gap-2 rounded-full text-sm font-medium transition-colors ${
+              tab === id ? "bg-white text-ink shadow-card" : "text-mute hover:text-ink"
+            }`}
+          >
+            <Icon className="h-4 w-4" aria-hidden="true" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-center gap-3">
+        <label htmlFor="ab-copies" className="text-sm font-medium text-ink">
+          Nusxalar soni
+        </label>
+        <input
+          id="ab-copies"
+          type="number"
+          min="1"
+          max="999"
+          value={copies}
+          onChange={(e) => setCopies(e.target.value)}
+          className="input w-24"
+        />
+      </div>
+
+      {tab === "api" ? (
+        <div className="mt-4">
+          <form onSubmit={handleApiSearch} className="flex gap-2">
+            <label htmlFor="ab-query" className="sr-only">
+              Kitob nomi yoki muallif
+            </label>
+            <input
+              id="ab-query"
+              type="search"
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Kitob nomi yoki muallif (masalan: Clean Code)"
+              className="input"
+            />
+            <button type="submit" disabled={loading} className="btn btn-gold shrink-0">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Search className="h-4 w-4" aria-hidden="true" />}
+              <span className="hidden sm:inline">Qidirish</span>
+            </button>
+          </form>
+
+          <div aria-live="polite">
+            {error && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+            {loading && <p className="mt-3 text-sm text-mute">Qidirilmoqda...</p>}
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Tablar (API qidiruv vs Qo'lda) */}
-        <div className="flex gap-2 p-1 bg-slate-100 rounded-xl my-4">
-          <button
-            onClick={() => setActiveTab('api')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'api' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Tashqi API orqali qidirish (Tavsiya etiladi)</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('manual')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
-              activeTab === 'manual' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Qo'lda to'ldirish</span>
-          </button>
-        </div>
+          {results.length > 0 && (
+            <ul className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {results.map((item) => (
+                <li key={item.key} className="flex gap-3 rounded-2xl border border-line p-3 transition-colors hover:border-gold">
+                  <BookCover book={item} compact className="h-24 w-16 shrink-0 rounded-md" />
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <p className="line-clamp-2 text-sm font-semibold text-ink">{item.title}</p>
+                    <p className="line-clamp-1 font-serif text-sm text-mute">{item.author}</p>
+                    <p className="text-[11px] text-mute">
+                      {item.category} · {item.year}
+                    </p>
+                    <button type="button" onClick={() => addFromApi(item)} className="btn btn-soft mt-auto min-h-[36px] px-3 text-xs">
+                      <PlusCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                      Fondga qo'shish
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
 
-        {/* TANA QISMI */}
-        <div className="flex-1 overflow-y-auto pr-1">
-          {activeTab === 'api' ? (
-            <div>
-              {/* Qidiruv inputi */}
-              <form onSubmit={handleApiSearch} className="flex gap-2 mb-4">
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Kitob nomi yoki muallifini yozing (masalan: Clean Code, Python, Fizika)..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 rounded-xl text-xs outline-none transition-all"
-                  />
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50"
-                >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                  <span>Qidirish</span>
-                </button>
-              </form>
-
-              {/* Xatolik xabari */}
-              {error && (
-                <div className="p-3 bg-rose-50 text-rose-700 rounded-xl text-xs border border-rose-200 mb-3">
-                  {error}
-                </div>
-              )}
-
-              {/* API natijalari ro'yxati */}
-              {searchResults.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {searchResults.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3 rounded-xl border border-slate-200 bg-white hover:border-emerald-400 hover:shadow-sm transition-all flex gap-3"
-                    >
-                      <img
-                        src={item.cover}
-                        alt={item.title}
-                        className="w-14 h-20 object-cover rounded-md border border-slate-100 shadow-xs shrink-0"
-                      />
-                      <div className="flex-1 flex flex-col justify-between">
-                        <div>
-                          <h5 className="font-bold text-slate-900 text-xs line-clamp-1">{item.title}</h5>
-                          <p className="text-[11px] text-slate-500 line-clamp-1">{item.author}</p>
-                          <span className="inline-block mt-1 text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                            {item.category} • {item.year}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => handleSelectApiBook(item)}
-                          className="mt-2 py-1 px-2.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white rounded-lg text-[11px] font-semibold transition-all flex items-center justify-center gap-1"
-                        >
-                          <PlusCircle className="w-3.5 h-3.5" />
-                          <span>Fondga qo'shish</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Boshlang'ich maslahat */}
-              {!loading && searchResults.length === 0 && !error && (
-                <div className="text-center py-8 text-slate-400 text-xs">
-                  <Search className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                  Qidiruv maydoniga kitob nomini yozing, API avtomatik topib beradi.
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Qo'lda to'ldirish formasi */
-            <form onSubmit={handleManualSubmit} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Kitob nomi *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Kitobning to'liq nomi"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Muallif *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.author}
-                    onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                    placeholder="Muallif ismi"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Kategoriya / Janr</label>
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    placeholder="Dasturlash, Badiiy..."
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Nashr yili</label>
-                  <input
-                    type="number"
-                    value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Kutubxonadagi nusxalar soni</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.totalCount}
-                    onChange={(e) => setFormData({ ...formData, totalCount: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Muqova rasm havolasi (URL)</label>
-                <input
-                  type="url"
-                  value={formData.cover}
-                  onChange={(e) => setFormData({ ...formData, cover: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Qisqacha tavsif</label>
-                <textarea
-                  rows="2"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Kitob nima haqidaligi haqida qisqacha..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full mt-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all"
-              >
-                Kutubxonaga saqlash
-              </button>
-            </form>
+          {!loading && results.length === 0 && !error && (
+            <p className="py-8 text-center font-serif text-mute">Kitob nomini yozing — internet bazasidan topib beraman.</p>
           )}
         </div>
-
-        {/* Modal pastki qismi */}
-        <div className="pt-3 border-t border-slate-100 flex justify-end">
-          <button
-            onClick={onClose}
-            className="py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium transition-colors"
-          >
-            Yopish
+      ) : (
+        <form onSubmit={handleManualSubmit} className="mt-4 space-y-4">
+          <div>
+            <label htmlFor="ab-title" className="label">
+              Kitob nomi <span className="text-red-700">*</span>
+            </label>
+            <input id="ab-title" required autoFocus value={form.title} onChange={set("title")} className="input" />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="ab-author" className="label">
+                Muallif <span className="text-red-700">*</span>
+              </label>
+              <input id="ab-author" required value={form.author} onChange={set("author")} className="input" />
+            </div>
+            <div>
+              <label htmlFor="ab-category" className="label">
+                Janr
+              </label>
+              <input id="ab-category" list="ab-categories" value={form.category} onChange={set("category")} className="input" />
+              <datalist id="ab-categories">
+                {categories.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="ab-year" className="label">
+                Nashr yili
+              </label>
+              <input id="ab-year" type="number" min="1000" max={THIS_YEAR + 1} value={form.year} onChange={set("year")} className="input" />
+            </div>
+            <div>
+              <label htmlFor="ab-cover" className="label">
+                Muqova rasmi (havola, ixtiyoriy)
+              </label>
+              <input id="ab-cover" type="url" value={form.cover} onChange={set("cover")} placeholder="https://..." className="input" />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="ab-desc" className="label">
+              Qisqacha tavsif
+            </label>
+            <textarea id="ab-desc" rows={3} value={form.description} onChange={set("description")} className="input py-2.5" />
+          </div>
+          <button type="submit" className="btn btn-gold w-full">
+            Kutubxonaga saqlash
           </button>
-        </div>
-
-      </div>
-    </div>
+        </form>
+      )}
+    </Modal>
   );
 }
